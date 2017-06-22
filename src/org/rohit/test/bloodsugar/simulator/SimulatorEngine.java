@@ -62,7 +62,7 @@ public class SimulatorEngine {
 				addToBloodSugarList(this.bloodSugar, newTimePoint);
 				
 				// start normalising the blood Sugar from this new time point
-				normaliseBloodSugar(newTimePoint);
+				normaliseBloodSugar(inputTime);
 				
 				// add the normalised blood sugar at the current input point
 				addToBloodSugarList(this.bloodSugar, inputTime);
@@ -109,7 +109,7 @@ public class SimulatorEngine {
 		bloodSugar = bloodSugar - diffInMinutes;
 		else
 		{
-			Date newTimePoint = DateHelper.getDateMinutesAhead(lastProcessedTime, bloodSugarGap );
+			Date newTimePoint = DateHelper.getDateMinutesAhead(lastProcessedTime, diffInMinutes );
 			bloodSugar = 80;
 			OutputPoint output = new OutputPoint();
 			output.setBloodSugar(this.bloodSugar);
