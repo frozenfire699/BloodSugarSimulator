@@ -141,31 +141,12 @@ public class SimulatorClient extends JFrame{
 	{
 		List<InputEntry> list = new ArrayList();
 		
-		Calendar cal = Calendar.getInstance();
-		cal.set(Calendar.HOUR_OF_DAY,12);
-		cal.set(Calendar.MINUTE,30);
-		cal.set(Calendar.SECOND,0);
-		cal.set(Calendar.MILLISECOND,0);
-		Date d = cal.getTime();
-		InputEntry entry = new InputEntry();
-		entry.setTimestamp(d);
-		entry.setItem("A");
-		entry.setType("EX");
-		
-		list.add(entry);
-		
-		cal = Calendar.getInstance();
-		cal.set(Calendar.HOUR_OF_DAY,4);
-		cal.set(Calendar.MINUTE,15);
-		cal.set(Calendar.SECOND,0);
-		cal.set(Calendar.MILLISECOND,0);
-		d = cal.getTime();
-		entry = new InputEntry();
-		entry.setTimestamp(d);
-		entry.setItem("B");
-		entry.setType("FD");
-		
-		list.add(entry);
+		list.add(new InputEntry("Sponge cake, plain","FDD", 8, 0, 0));
+		list.add(new InputEntry("Apple, made with sugar","FDD", 8, 30, 0));
+		list.add(new InputEntry("Running","EXC", 9, 15, 0));
+		list.add(new InputEntry("Running","EXC", 12, 30, 0));
+		list.add(new InputEntry("Apple, made with sugar","FDD", 15, 30, 0));
+		list.add(new InputEntry("Walking","EXC", 19, 0, 0));
 		
 		engine.processUserInputs(list);
 	}

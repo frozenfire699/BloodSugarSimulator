@@ -2,10 +2,12 @@ package org.rohit.test.bloodsugar.simulator;
 
 import java.util.ArrayList;
 import java.util.Date;
+import java.util.LinkedList;
 import java.util.List;
-import java.util.concurrent.TimeUnit;
+import java.util.Queue;
 
 import org.rohit.test.bloodsugar.model.InputEntry;
+import org.rohit.test.bloodsugar.model.MyQueueEvent;
 import org.rohit.test.bloodsugar.model.OutputPoint;
 import org.rohit.test.bloodsugar.util.DateHelper;
 
@@ -21,8 +23,9 @@ public class SimulatorEngine {
 	private List<OutputPoint> bloodSugarList;
 	private List<OutputPoint> glycationList;
 	
-	private Date lastProcessedTime;
-	private long bloodSugar;
+	private Queue<MyQueueEvent> eventQueue;
+
+	private Double bloodSugar;
 	private long glycation;
 	
 	/**
@@ -31,10 +34,10 @@ public class SimulatorEngine {
 	 * Defaulting blood sugar and glycation levels to 80 and 0 respectively
 	 */
 	public SimulatorEngine() {
+		eventQueue = new LinkedList();
 		bloodSugarList = new ArrayList<OutputPoint>();
 		glycationList = new ArrayList<OutputPoint>();
-		lastProcessedTime = DateHelper.getMidnightTime(); // defaulting to start of day
-		bloodSugar = 80;
+		bloodSugar = 80.0;
 		glycation = 0;
 		
 	}
@@ -45,87 +48,187 @@ public class SimulatorEngine {
 	 */
 	public void processUserInputs(List<InputEntry> input)
 	{
+		input = addEndPointOfDay(input);
 		Date inputTime;
 		//process all inputs one by one
 		for(InputEntry ip:input)
 		{
-			inputTime = ip.getTimestamp();
-			OutputPoint output;
-			// check if the current entry is within 2 hours
-			if(isNormalisationRequired(inputTime))
+			// check queue for previous events
+			if(eventQueue.isEmpty())
 			{
-				// More than 2 hours have passed by
-				// Create a graph point, to capture the 2 hour mark
-				Date newTimePoint = DateHelper.getTwoHourPointFromLastProcessedTime(lastProcessedTime);
-				
-				// add the additional output point to be captured on graph
-				addToBloodSugarList(this.bloodSugar, newTimePoint);
-				
-				// start normalising the blood Sugar from this new time point
-				normaliseBloodSugar(inputTime);
-				
-				// add the normalised blood sugar at the current input point
-				addToBloodSugarList(this.bloodSugar, inputTime);
-			
+				// add the first event to queue
+				eventQueue.add(new MyQueueEvent(ip.getTimestamp(), ip.getType(), ip.getItem()));
+				//plot the point
+				addToBloodSugarList(this.bloodSugar, ip.getTimestamp());
 			}
 			else
 			{
-				// New input is within 2 hours of last input
+				// create a temp queue
+				Queue<MyQueueEvent> tempQueue = new LinkedList<MyQueueEvent>();
+				double tempValue = 0;
+				Date expiredTimeStamp = null;
+				Date timePlotTimeStamp = null;
+				//process all events in event queue one by one
+				while(!eventQueue.isEmpty())
+				{
+					// fetch the first event
+					MyQueueEvent temp = eventQueue.poll();
+					// if the current event is before the the head element end time
+					if(ip.getTimestamp().before(temp.getEventEndTime()))
+					{
+						// get the difference in minutes
+						long tempDiff = DateHelper.getDiffInMinutes(ip.getTimestamp(),temp.getEventLastProcessedTime());
+						// update the minutes that are left for this event to expire
+						temp.setMinsLeftToExpire(temp.getMinsLeftToExpire() - tempDiff);
+						// update the event's last processed time
+						temp.setEventLastProcessedTime(ip.getTimestamp());
+						// calculate the blood sugar for the time window
+						tempValue = temp.getGlycemicIndexRate() * tempDiff;
+						// update the blood sugar
+						updateBloodSugar(tempValue);
+						// add the event to temp queue to be processed again
+						tempQueue.add(temp);
+						// update the timestamp to be plotted next
+						timePlotTimeStamp = ip.getTimestamp();
+					}
+					else
+					{
+						if(expiredTimeStamp == null)
+						{
+							// Expire the events till their end time
+							long tempDiff = temp.getMinsLeftToExpire();
+							expiredTimeStamp = DateHelper.getDateMinutesAhead(temp.getEventLastProcessedTime(), tempDiff);
+							tempValue = temp.getGlycemicIndexRate() * tempDiff;
+							updateBloodSugar(tempValue);
+							timePlotTimeStamp = expiredTimeStamp;
+						}
+						else
+						{
+					
+							if(temp.getEventStartTime().before(expiredTimeStamp) && expiredTimeStamp.before(temp.getEventEndTime()))
+							{
+								long tempDiff = DateHelper.getDiffInMinutes(expiredTimeStamp, temp.getEventLastProcessedTime());
+								temp.setMinsLeftToExpire(temp.getMinsLeftToExpire() - tempDiff);
+								temp.setEventLastProcessedTime(expiredTimeStamp);
+								tempValue = temp.getGlycemicIndexRate() * tempDiff;
+								updateBloodSugar(tempValue);
+								tempQueue.add(temp);
+								timePlotTimeStamp = expiredTimeStamp;
+							}
+							else if(temp.getEventStartTime().before(expiredTimeStamp) && expiredTimeStamp.after(temp.getEventEndTime()))
+							{
+								// adjusting scenario where another event has already finished
+								long tempDiff = temp.getMinsLeftToExpire();
+								Date previousTimeStamp = DateHelper.getDateMinutesBefore(expiredTimeStamp, tempDiff);
+								tempValue = temp.getGlycemicIndexRate() * tempDiff;
+								timePlotTimeStamp = previousTimeStamp;
+								addToBloodSugarList(this.bloodSugar - tempValue, timePlotTimeStamp);
+							}
+							else if(temp.getEventStartTime().after(expiredTimeStamp))
+							{
+								addToBloodSugarList(this.bloodSugar, expiredTimeStamp);
+								// start normalisation till this event starts
+								long normaliseTime = DateHelper.getDiffInMinutes(temp.getEventStartTime(), expiredTimeStamp);
+								if(normaliseTime >= this.bloodSugar - 80.0)
+								{
+									timePlotTimeStamp = DateHelper.getDateMinutesAhead(expiredTimeStamp, (long)(this.bloodSugar - 80.0));
+									addToBloodSugarList(80.0, timePlotTimeStamp);
+									this.bloodSugar = 80.0;
+									tempQueue.add(temp);
+									timePlotTimeStamp = temp.getEventStartTime();
+								}
+								else
+								{
+									timePlotTimeStamp = DateHelper.getDateMinutesAhead(expiredTimeStamp, normaliseTime);
+									addToBloodSugarList(bloodSugar - normaliseTime, timePlotTimeStamp);
+									this.bloodSugar = bloodSugar - normaliseTime;
+									tempQueue.add(temp);
+									timePlotTimeStamp = temp.getEventStartTime();
+								}
+								
+							}
+						}
+						
+					}
+					
+				}
 				
+				addToBloodSugarList(this.bloodSugar, timePlotTimeStamp);
+				while(!tempQueue.isEmpty())
+					eventQueue.add(tempQueue.poll());
+				eventQueue.add(new MyQueueEvent(ip.getTimestamp(), ip.getType(), ip.getItem()));
 			}
 		}
+		
+		processRemainingEvents();
+		
 	
 	}
 	
-	
+	/**
+	 * This method will process the remaining events in the event queue
+	 * 
+	 */
+	public void processRemainingEvents()
+	{
+		double tempValue = 0;
+		Date timePlotTimeStamp = null;
+		while(!eventQueue.isEmpty()){
+			MyQueueEvent temp = eventQueue.poll();
+			long minsToProcess = temp.getMinsLeftToExpire();
+			// this is the manually added last time point of the day
+			if(minsToProcess==0)
+			{
+				timePlotTimeStamp = DateHelper.getDateMinutesAhead(timePlotTimeStamp, (long)(this.bloodSugar - 80.0));
+				addToBloodSugarList(80.0, timePlotTimeStamp);
+			}
+			else
+			{
+				// last user provided input point 
+				tempValue = temp.getGlycemicIndexRate() * minsToProcess;
+				updateBloodSugar(tempValue);
+				timePlotTimeStamp = DateHelper.getDateMinutesAhead(temp.getEventStartTime(), minsToProcess);
+				addToBloodSugarList(this.bloodSugar, timePlotTimeStamp);
+			}
+			
+		}
+		
+	}
 	
 	/**
-	 * This method checks if 2 hours have passed by before the last processed input
-	 * If yes, normalisation of blood sugar should start so method return true
-	 * If no, method returns false
-	 * @param inputTime
+	 * This is a method to add an additional input point to mark the end of the day
+	 * @param list
 	 * @return
 	 */
-	public boolean isNormalisationRequired(Date inputTime)
+
+	public List<InputEntry> addEndPointOfDay(List<InputEntry> list)
 	{
-		boolean normalisationFlag = false;
-		long diffInMillies = inputTime.getTime() - lastProcessedTime.getTime();
-		long diffInMinutes = TimeUnit.MINUTES.convert(diffInMillies, TimeUnit.MILLISECONDS);
-		if(diffInMinutes > 120)
-			normalisationFlag = true;
-		return normalisationFlag;
+		list.add(new InputEntry("","", 23, 59, 59));
+		return list;
+	}
+	
+	
+	/**
+	 * Method to update blood sugar
+	 * @param value
+	 */
+	public void updateBloodSugar(Double value)
+	{
+		bloodSugar = bloodSugar + value;
 	}
 	
 	/**
-	 * This method will normalise the blood sugar level to the current timestamp
-	 * @param inputTime
+	 * List to capture the plotting points on the graph for blood sugar
+	 * @param bloodSugar
+	 * @param timestamp
 	 */
-	public void normaliseBloodSugar(Date inputTime)
-	{
-		long diffInMillies = inputTime.getTime() - lastProcessedTime.getTime();
-		long diffInMinutes = TimeUnit.MINUTES.convert(diffInMillies, TimeUnit.MILLISECONDS);
-		long bloodSugarGap = bloodSugar - 80;
-		if(diffInMinutes <= bloodSugarGap)
-		bloodSugar = bloodSugar - diffInMinutes;
-		else
-		{
-			Date newTimePoint = DateHelper.getDateMinutesAhead(lastProcessedTime, diffInMinutes );
-			bloodSugar = 80;
-			OutputPoint output = new OutputPoint();
-			output.setBloodSugar(this.bloodSugar);
-			output.setTimestamp(newTimePoint);
-			lastProcessedTime = newTimePoint;
-		}
-	}
-	
-	public void addToBloodSugarList(long bloodSugar, Date timestamp)
+	public void addToBloodSugarList(Double bloodSugar, Date timestamp)
 	{
 		OutputPoint output = new OutputPoint();
 		output.setBloodSugar(bloodSugar);
 		output.setTimestamp(timestamp);
 		this.bloodSugarList.add(output);
 		
-		lastProcessedTime = timestamp;
 	}
 	
 	public List getBloodSugarList() {

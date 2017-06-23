@@ -4,7 +4,22 @@ import java.util.HashMap;
 
 public class FoodDB {
 
-	public HashMap<String, Integer> hmFoodDB = new HashMap<String, Integer>();
+	public static FoodDB foodDB;
+	public static HashMap<String, Integer> hmFoodDB = new HashMap<String, Integer>();
+	
+
+	public FoodDB()
+	{
+		constructMap();
+	}
+	
+	public static FoodDB getInstance()
+	{
+		if(foodDB==null)
+			foodDB = new FoodDB();
+			
+		return foodDB;
+	}
 
 	public void constructMap()
 	{

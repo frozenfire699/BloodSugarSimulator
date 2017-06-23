@@ -4,8 +4,22 @@ import java.util.HashMap;
 
 public class ExcerciseDB {
 	
-	public HashMap<String, Integer> hmExcerciseDB = new HashMap<String, Integer>();
+	public static ExcerciseDB excerciseDB;
+	
+	public static HashMap<String, Integer> hmExcerciseDB = new HashMap<String, Integer>();
+	
+	public static ExcerciseDB getInstance()
+	{
+		if (excerciseDB==null)
+			excerciseDB = new ExcerciseDB();
+		
+		return excerciseDB;
+	}
 
+	public ExcerciseDB()
+	{
+		constructMap();
+	}
 	public void constructMap()
 	{
 		

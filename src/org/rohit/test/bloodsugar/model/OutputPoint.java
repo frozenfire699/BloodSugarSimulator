@@ -9,12 +9,12 @@ import java.util.Date;
  */
 public class OutputPoint {
 
-	private long value;
+	private Double value;
 	private Date timestamp;
-	public long getValue() {
+	public Double getValue() {
 		return value;
 	}
-	public void setBloodSugar(long value) {
+	public void setBloodSugar(double value) {
 		this.value = value;
 	}
 	public Date getTimestamp() {
