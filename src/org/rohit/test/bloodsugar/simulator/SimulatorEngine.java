@@ -51,7 +51,6 @@ public class SimulatorEngine {
 	public void processUserInputs(List<InputEntry> input)
 	{
 		input = addEndPointOfDay(input);
-		Date inputTime;
 		//process all inputs one by one
 		for(InputEntry ip:input)
 		{
