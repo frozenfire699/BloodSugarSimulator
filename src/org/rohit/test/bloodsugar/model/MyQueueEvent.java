@@ -10,6 +10,7 @@ public class MyQueueEvent {
 	
 	private Date eventStartTime;
 	private Date eventEndTime;
+	private Date eventNextPlotTime;
 	private Date eventLastProcessedTime;
 	private long minsLeftToExpire;
 	private Double glycemicIndexRate;
@@ -23,13 +24,15 @@ public class MyQueueEvent {
 	{
 		this.eventStartTime = inputEventTime;
 		if(eventType.equalsIgnoreCase("FDD")){
-			this.eventEndTime = DateHelper.getDateMinutesAhead(inputEventTime, 120);
 			this.minsLeftToExpire = 120;
+			this.eventEndTime = DateHelper.getDateMinutesAhead(inputEventTime, 120);
+			this.eventNextPlotTime = this.eventEndTime;
 			this.glycemicIndexRate = FoodDB.getInstance().hmFoodDB.get(item).doubleValue()/120;
 		}
 		else if(eventType.equalsIgnoreCase("EXC")){
-			this.eventEndTime = DateHelper.getDateMinutesAhead(inputEventTime, 60);
 			this.minsLeftToExpire = 60;
+			this.eventEndTime = DateHelper.getDateMinutesAhead(inputEventTime, 60);
+			this.eventNextPlotTime = this.eventEndTime;
 			this.glycemicIndexRate = (ExcerciseDB.getInstance().hmExcerciseDB.get(item).doubleValue()/60) * -1;
 		}
 		else
@@ -46,12 +49,6 @@ public class MyQueueEvent {
 	}
 	public void setEventStartTime(Date eventStartTime) {
 		this.eventStartTime = eventStartTime;
-	}
-	public Date getEventEndTime() {
-		return eventEndTime;
-	}
-	public void setEventEndTime(Date eventEndTime) {
-		this.eventEndTime = eventEndTime;
 	}
 	public Date getEventLastProcessedTime() {
 		return eventLastProcessedTime;
@@ -70,6 +67,25 @@ public class MyQueueEvent {
 	}
 	public void setGlycemicIndexRate(Double glycemicIndexRate) {
 		this.glycemicIndexRate = glycemicIndexRate;
+	}
+
+	public Date getEventNextPlotTime() {
+		return eventNextPlotTime;
+	}
+
+	public void setEventNextPlotTime(Date eventNextPlotTime) {
+		if(eventNextPlotTime.after(DateHelper.getDateMinutesAhead(eventLastProcessedTime, minsLeftToExpire)))
+		this.eventNextPlotTime = DateHelper.getDateMinutesAhead(eventLastProcessedTime, minsLeftToExpire);
+		else
+			this.eventNextPlotTime = eventNextPlotTime;
+	}
+
+	public Date getEventEndTime() {
+		return eventEndTime;
+	}
+
+	public void setEventEndTime(Date eventEndTime) {
+		this.eventEndTime = eventEndTime;
 	}
 	
 	

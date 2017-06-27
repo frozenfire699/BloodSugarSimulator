@@ -25,8 +25,12 @@ public class SimulatorEngine {
 	
 	private Queue<MyQueueEvent> eventQueue;
 	
-	Date lastPlotTimeStamp = null;
+	private Date newPlotTimeStamp = null;
+	private Date earliestEventEndTime = null;
 
+	private Double combinedIndex =0.0;
+	private long plottingMinutes = 0;
+	
 	private Double bloodSugar;
 	private int glycation;
 	
@@ -50,6 +54,7 @@ public class SimulatorEngine {
 	 */
 	public void processUserInputs(List<InputEntry> input)
 	{
+		this.earliestEventEndTime = DateHelper.getEndOfDayTime();
 		input = addEndPointOfDay(input);
 		//process all inputs one by one
 		for(InputEntry ip:input)
@@ -64,129 +69,103 @@ public class SimulatorEngine {
 	}
 
 	private void processEventQueue(InputEntry ip) {
+		
+		System.out.println("#####processing input entry with timestamp######" + ip.getTimestamp().toString());
+		MyQueueEvent currentInputEvent = new MyQueueEvent(ip.getTimestamp(), ip.getType(), ip.getItem());
+		boolean expiredEventFlag = false;
 		// check queue for previous events
-		if(eventQueue.isEmpty())
+		if(this.eventQueue.isEmpty())
 		{
 			// add the first event to queue
-			eventQueue.add(new MyQueueEvent(ip.getTimestamp(), ip.getType(), ip.getItem()));
+			MyQueueEvent temp = new MyQueueEvent(ip.getTimestamp(), ip.getType(), ip.getItem());
+			temp.setEventNextPlotTime(DateHelper.getDateMinutesAhead(temp.getEventStartTime(), temp.getMinsLeftToExpire()));
+			this.newPlotTimeStamp = temp.getEventStartTime();
+			this.earliestEventEndTime = temp.getEventEndTime();
 			//plot the point
-			addToBloodSugarList(this.bloodSugar, ip.getTimestamp());
+			addToBloodSugarList();
+			eventQueue.add(currentInputEvent);
 		}
 		else
 		{
 			// create a temp queue
 			Queue<MyQueueEvent> tempQueue = new LinkedList<MyQueueEvent>();
 			double tempValue = 0;
+			this.combinedIndex = 0.0;
 			
-			Date timePlotTimeStamp = null;
 			//process all events in event queue one by one
-			while(!eventQueue.isEmpty())
+			while(!this.eventQueue.isEmpty())
 			{
 				// fetch the first event
-				MyQueueEvent temp = eventQueue.poll();
-				if(lastPlotTimeStamp != null && temp.getEventStartTime().after(lastPlotTimeStamp))
+				MyQueueEvent temp = this.eventQueue.poll();
+				
+				// set the next timestamp until which current event from queue needs to be processed
+				if(temp.getEventLastProcessedTime().before(currentInputEvent.getEventStartTime()))
 				{
-					// case of normalisation
-					//addToBloodSugarList(this.bloodSugar, expiredTimeStamp);
-					// start normalisation till this event starts
-					long normaliseTime = DateHelper.getDiffInMinutes(temp.getEventStartTime(), lastPlotTimeStamp);
-					// Window of time gap is larger than difference between current and base Blood Sugar
-					if(normaliseTime >= this.bloodSugar - 80.0)
+					temp.setEventNextPlotTime(currentInputEvent.getEventStartTime());
+					// update the earliest event end time for non expired events
+					if(temp.getMinsLeftToExpire()>0 && temp.getEventEndTime().before(this.earliestEventEndTime))
 					{
-						timePlotTimeStamp = DateHelper.getDateMinutesAhead(lastPlotTimeStamp, (long)(this.bloodSugar - 80.0));
-						addToBloodSugarList(80.0, timePlotTimeStamp);
-						// default to 80
-						this.bloodSugar = 80.0;
-						tempQueue.add(temp);
-						timePlotTimeStamp = temp.getEventStartTime();
+						this.earliestEventEndTime = temp.getEventEndTime();
+						//System.out.println("Updating earliest end time to " + );
 					}
-					else
-					{
-						//  Window of time gap is smaller than difference between current and base Blood Sugar
-						timePlotTimeStamp = DateHelper.getDateMinutesAhead(lastPlotTimeStamp, normaliseTime);
-						this.bloodSugar = bloodSugar - normaliseTime;
-						tempQueue.add(temp);
-						timePlotTimeStamp = temp.getEventStartTime();
-					}
-					
-					lastPlotTimeStamp = null;
-					
-				}
-				else
-				{
-					// Case: Current event starts before an earlier event expires
-					// Process the earlier event till the current input event start time
-					if(ip.getTimestamp().before(DateHelper.getDateMinutesAhead(temp.getEventLastProcessedTime(), temp.getMinsLeftToExpire())))
-					{
-						// get the difference in minutes
-						long tempDiff = DateHelper.getDiffInMinutes(ip.getTimestamp(),temp.getEventLastProcessedTime());
-						// update the minutes that are left for this event to expire
-						temp.setMinsLeftToExpire(temp.getMinsLeftToExpire() - tempDiff);
-						// update the event's last processed time
-						temp.setEventLastProcessedTime(ip.getTimestamp());
-						// calculate the blood sugar for the time window
-						tempValue = temp.getGlycemicIndexRate() * tempDiff;
-						// update the blood sugar
-						updateBloodSugar(tempValue);
-						// add the event to temp queue to be processed again
-						tempQueue.add(temp);
-						// update the timestamp to be plotted next
-						timePlotTimeStamp = ip.getTimestamp();
-					}
-					else
-					{
-						// Expire the events till their end time
-						long tempDiff = temp.getMinsLeftToExpire();
-						
-						if(timePlotTimeStamp!=null && DateHelper.getDateMinutesAhead(temp.getEventLastProcessedTime(), temp.getMinsLeftToExpire()).after(timePlotTimeStamp))
-						{
-							tempDiff = DateHelper.getDiffInMinutes(timePlotTimeStamp, temp.getEventLastProcessedTime());
-							temp.setEventLastProcessedTime(timePlotTimeStamp);
-							temp.setMinsLeftToExpire(temp.getMinsLeftToExpire() - tempDiff);
-							tempValue = temp.getGlycemicIndexRate() * tempDiff;
-							updateBloodSugar(tempValue);
-							tempQueue.add(temp);
-							
-						}
-						else if(timePlotTimeStamp!=null && DateHelper.getDateMinutesAhead(temp.getEventLastProcessedTime(), temp.getMinsLeftToExpire()).before(timePlotTimeStamp))
-						{
-							// Adjustment event as current event is finishing before previous event
-							
-							tempDiff = temp.getMinsLeftToExpire();
-							Date previousTimeStamp = DateHelper.getDateMinutesBefore(timePlotTimeStamp, tempDiff);
-							tempValue = temp.getGlycemicIndexRate() * tempDiff;
-							temp.setEventLastProcessedTime(timePlotTimeStamp);
-							temp.setMinsLeftToExpire(0);
-							addToBloodSugarList(this.bloodSugar - tempValue, previousTimeStamp);
-							
-						}
-						else
-						{
-							timePlotTimeStamp = DateHelper.getDateMinutesAhead(temp.getEventLastProcessedTime(), temp.getMinsLeftToExpire());
-							temp.setEventLastProcessedTime(timePlotTimeStamp);
-							temp.setMinsLeftToExpire(0);
-							tempValue = temp.getGlycemicIndexRate() * tempDiff;
-							updateBloodSugar(tempValue);
-						}
-						
-						}
+					if(this.earliestEventEndTime.before(temp.getEventNextPlotTime()))
+					temp.setEventNextPlotTime(this.earliestEventEndTime);
 				}
 				
+				
+				if(temp.getMinsLeftToExpire() > 0 && 
+						(DateHelper.getDiffInMinutes(temp.getEventEndTime(), temp.getEventNextPlotTime())) >0)
+				{
+					// get the difference in minutes
+					long tempDiff = DateHelper.getDiffInMinutes(temp.getEventNextPlotTime(), temp.getEventLastProcessedTime());
+					// update the minutes that are left for this event to expire
+					temp.setMinsLeftToExpire(temp.getMinsLeftToExpire() - tempDiff);
+					// update the event's last processed time
+					temp.setEventLastProcessedTime(temp.getEventNextPlotTime());
+					// calculate the blood sugar for the time window
+					//tempValue = temp.getGlycemicIndexRate() * tempDiff;
+					this.combinedIndex = this.combinedIndex + temp.getGlycemicIndexRate();
+					this.plottingMinutes = tempDiff;
+					// add the event to temp queue to be processed again
+					tempQueue.add(temp);
+					// update the timestamp to be plotted next
+					this.newPlotTimeStamp = temp.getEventNextPlotTime();
+				}
+				else if(temp.getMinsLeftToExpire() > 0 && 
+						(DateHelper.getDiffInMinutes(temp.getEventEndTime(), temp.getEventNextPlotTime())) == 0)
+				{
+					// expire the current event
+					// Expire the events till their end time
+					long tempDiff = temp.getMinsLeftToExpire();
+					
+					temp.setMinsLeftToExpire(0);
+					// update the event's last processed time
+					temp.setEventLastProcessedTime(temp.getEventNextPlotTime());
+					// calculate the blood sugar for the time window
+					//tempValue = temp.getGlycemicIndexRate() * tempDiff;
+					this.combinedIndex = this.combinedIndex + temp.getGlycemicIndexRate();
+					this.plottingMinutes = tempDiff;
+					this.newPlotTimeStamp = temp.getEventNextPlotTime();
+					expiredEventFlag = true;
+					
+					
+				}		
 				
 			}
+				
 			
 			// plot the point
-			addToBloodSugarList(this.bloodSugar, timePlotTimeStamp);
+			addToBloodSugarList();
 			// move the unprocessed events back to the event queue to be picked again for processing
 			while(!tempQueue.isEmpty())
 				eventQueue.add(tempQueue.poll());
-			if(eventQueue.isEmpty())
-			{
-				lastPlotTimeStamp = timePlotTimeStamp;
-				return;
-			}
+			
+			if(expiredEventFlag)
+				this.earliestEventEndTime = DateHelper.getEndOfDayTime();
+			
+			eventQueue.add(currentInputEvent);
 				
-			// add the current input event to the event queue
+			/*// add the current input event to the event queue
 			MyQueueEvent tempEvent = eventQueue.peek();
 			System.out.println("Current Input event Time is "+ ip.getTimestamp().toString());
 			System.out.println("Current head queue event last start times is :" + tempEvent.getEventStartTime());
@@ -204,8 +183,8 @@ public class SimulatorEngine {
 				System.out.println("current head end time is before current input start time");
 				System.out.println("Reprocessing event queue");
 				processEventQueue(ip);
-			}
-			eventQueue.add(new MyQueueEvent(ip.getTimestamp(), ip.getType(), ip.getItem()));
+			}*/
+			
 		}
 	}
 	
@@ -234,8 +213,8 @@ public class SimulatorEngine {
 					minsToProcess = DateHelper.getDiffInMinutes(DateHelper.getEndOfDayTime(), temp.getEventStartTime());
 					// last user provided input point 
 				tempValue = temp.getGlycemicIndexRate() * minsToProcess;
-				updateBloodSugar(tempValue);
-				addToBloodSugarList(this.bloodSugar, DateHelper.getEndOfDayTime());
+
+				addToBloodSugarList();
 			}
 			
 		}
@@ -259,16 +238,25 @@ public class SimulatorEngine {
 	 * Method to update blood sugar
 	 * @param value
 	 */
-	public void updateBloodSugar(Double value)
+	public void updateBloodSugar()
 	{
-		bloodSugar = bloodSugar + value;
+		bloodSugar = this.bloodSugar + this.plottingMinutes * this.combinedIndex;
 		checkGlycation();
 	}
 	
+	/**
+	 * This method tracks the glycation value
+	 */
 	public void checkGlycation()
 	{
+		// check the number of minutes blood sugar was above 150
 		if(this.bloodSugar > 150)
-			this.glycation++;
+		{
+			
+			Double bloodSugarDiff = this.bloodSugar - 150;
+			this.glycation = (int) (this.glycation + bloodSugarDiff/this.combinedIndex);
+		}
+			
 		
 	}
 	
@@ -277,12 +265,16 @@ public class SimulatorEngine {
 	 * @param bloodSugar
 	 * @param timestamp
 	 */
-	public void addToBloodSugarList(Double bloodSugar, Date timestamp)
+	public void addToBloodSugarList()
 	{
+		updateBloodSugar();
 		OutputPoint output = new OutputPoint();
-		output.setBloodSugar(bloodSugar);
-		output.setTimestamp(timestamp);
+		output.setBloodSugar(this.bloodSugar);
+		output.setTimestamp(this.newPlotTimeStamp);
 		this.bloodSugarList.add(output);
+		System.out.println("******************BLOOD SUGAR GRAPH POINT******************");
+		System.out.println("blood Sugar--->" + bloodSugar);
+		System.out.println("Time--->" + this.newPlotTimeStamp.toString());
 		
 	}
 	

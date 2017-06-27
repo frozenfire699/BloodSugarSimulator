@@ -145,14 +145,12 @@ public class SimulatorClient extends JFrame{
 		list.add(new InputEntry("Apple, made with sugar","FDD", 8, 30, 0));
 		list.add(new InputEntry("Running","EXC", 9, 15, 0));
 		list.add(new InputEntry("Running","EXC", 12, 30, 0));
-		list.add(new InputEntry("Apple, made with sugar","FDD", 15, 30, 0));
-		list.add(new InputEntry("Walking","EXC", 15, 45, 0));
-		list.add(new InputEntry("Sponge cake, plain","FDD", 16, 50, 0));
-		list.add(new InputEntry("Apple, made with sugar","FDD", 17, 30, 0));
-		list.add(new InputEntry("Running","EXC", 19, 15, 0));
-		list.add(new InputEntry("Running","EXC", 19, 30, 0));
-		list.add(new InputEntry("Apple, made with sugar","FDD", 21, 30, 0));
-		list.add(new InputEntry("Apple, made with sugar","FDD", 23, 38, 0));
+		list.add(new InputEntry("White wheat flour bread","FDD", 15, 30, 0));
+		list.add(new InputEntry("Walking","EXC", 16,10 , 0));
+		list.add(new InputEntry("Gatorade","FDD", 17, 30, 0));
+		//list.add(new InputEntry("Crunching","EXC", 19, 15, 0));
+		//list.add(new InputEntry("Running","EXC", 19, 30, 0));
+		//list.add(new InputEntry("Apple, made with sugar","FDD", 23, 38, 0));
 		
 		
 		engine.processUserInputs(list);
