@@ -22,4 +22,4 @@ Inputs will be either Food or Excercise along with the timestamp of each event.
 1. Clean and build the project
 1. Run SimulatorCLient.java as a Java application
 1. To modify the input points, change the entries in the main function of the SimulatorClient.java 
-1. Input will of the form (<Item><Type><Hours><Min><Sec>)
+1. Input will of the form <Item><Type><Hours><Min><Sec>
