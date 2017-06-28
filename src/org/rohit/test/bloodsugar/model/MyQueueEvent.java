@@ -37,6 +37,8 @@ public class MyQueueEvent {
 		}
 		else
 		{
+			this.eventEndTime = this.eventStartTime;
+			this.eventNextPlotTime = this.eventStartTime;
 			this.minsLeftToExpire = 0;
 		}
 		this.eventLastProcessedTime = inputEventTime;

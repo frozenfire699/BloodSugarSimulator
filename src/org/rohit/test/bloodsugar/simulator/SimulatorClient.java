@@ -110,18 +110,33 @@ public class SimulatorClient extends JFrame{
 		
 		final TimeSeriesCollection dataset = new TimeSeriesCollection();
 		final TimeSeries s1 = new TimeSeries("Blood Sugar", Minute.class);
+		final TimeSeries s2 = new TimeSeries("Glycation", Minute.class);
 		
 		Calendar calendar = GregorianCalendar.getInstance();
+		Calendar calendar2 = GregorianCalendar.getInstance();
+		Date firstTimeStampOfDay = null;
 		
 		for(OutputPoint out:output)
 		{
 			calendar.setTime(out.getTimestamp());
+			if(firstTimeStampOfDay==null)
+			{
+				firstTimeStampOfDay = out.getTimestamp();
+			}
 			s1.add(new Minute(calendar.get(Calendar.MINUTE), calendar.get(Calendar.HOUR_OF_DAY), calendar.get(Calendar.DAY_OF_MONTH),
 					calendar.get(Calendar.MONTH), calendar.get(Calendar.YEAR)), out.getValue());
 		
 		}
+		
+		calendar2.setTime(firstTimeStampOfDay);
+		s2.add(new Minute(calendar2.get(Calendar.MINUTE), calendar2.get(Calendar.HOUR_OF_DAY), calendar2.get(Calendar.DAY_OF_MONTH),
+				calendar2.get(Calendar.MONTH), calendar2.get(Calendar.YEAR)), 0);
+		s2.add(new Minute(calendar.get(Calendar.MINUTE), calendar.get(Calendar.HOUR_OF_DAY), calendar.get(Calendar.DAY_OF_MONTH),
+				calendar.get(Calendar.MONTH), calendar.get(Calendar.YEAR)), engine.getGlycation() );
+		
         
         dataset.addSeries(s1);
+        dataset.addSeries(s2);
         return dataset;
 	}
 
@@ -148,9 +163,9 @@ public class SimulatorClient extends JFrame{
 		list.add(new InputEntry("White wheat flour bread","FDD", 15, 30, 0));
 		list.add(new InputEntry("Walking","EXC", 16,10 , 0));
 		list.add(new InputEntry("Gatorade","FDD", 17, 30, 0));
-		//list.add(new InputEntry("Crunching","EXC", 19, 15, 0));
-		//list.add(new InputEntry("Running","EXC", 19, 30, 0));
-		//list.add(new InputEntry("Apple, made with sugar","FDD", 23, 38, 0));
+		list.add(new InputEntry("Crunching","EXC", 19, 15, 0));
+		list.add(new InputEntry("Running","EXC", 19, 30, 0));
+		list.add(new InputEntry("Apple, made with sugar","FDD", 23, 38, 0));
 		
 		
 		engine.processUserInputs(list);
