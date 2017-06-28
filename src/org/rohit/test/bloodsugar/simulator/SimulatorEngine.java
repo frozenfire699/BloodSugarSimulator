@@ -21,23 +21,23 @@ import org.rohit.test.bloodsugar.util.DateHelper;
  */
 public class SimulatorEngine {
 
-	private List<OutputPoint> bloodSugarList;
+	private List<OutputPoint> bloodSugarList; // List which contains blood sugar points to be plotted on the graph
 	
-	private Queue<MyQueueEvent> eventQueue;
+	private Queue<MyQueueEvent> eventQueue; // Queue collection to be used by the engine to process input data points
 	
-	private TreeSet<Date> plottingTimes;
+	private TreeSet<Date> plottingTimes; // Collection to store all plotting timestamps on the graph
 	
-	private Date lastPlottedTime ;
-	private Date toBePlottedTime ;
+	private Date lastPlottedTime ; // Variable to capture the last plotted timestamp
+	private Date toBePlottedTime ; // Variable to capture the next timestamp to be plotted
 
-	private Double combinedIndex =0.0;
-	private long plottingMinutes = 0;
+	private Double combinedIndex =0.0; // Cumilative index for the plotting period
+	private long plottingMinutes = 0; // Number of minutes for the plotting period
 	
-	private Double bloodSugar;
-	private int glycation;
-	private Date glycationHighTimeStamp;
-	private boolean glycationFlag;
-	private Double lastGlycationBloodSugar;
+	private Double bloodSugar; // variable to capture blood sugar at a particular timestamp 
+	private int glycation; // variable to capture glycation at a particular timestamp
+	private Date glycationHighTimeStamp; // variable to capture the last processed glycation timestamp
+	private boolean glycationFlag; // glycation flag to check the glycation zone
+	private Double lastGlycationBloodSugar; // variable to capture last processed blood sugar in glycation zone
 	
 	/**
 	 * Default constructor
@@ -78,6 +78,11 @@ public class SimulatorEngine {
 		System.out.println("all events processed");
 	}
 
+	/**
+	 * This method will process  previous input points until the start time of the current event
+	 * 
+	 * @param currentInputEvent
+	 */
 	private void processEventQueue(MyQueueEvent currentInputEvent) {
 		
 		boolean normalisationFlag = true;
@@ -89,9 +94,6 @@ public class SimulatorEngine {
 					currentInputEvent.getMinsLeftToExpire()));
 			updatePlottingTimeSet(currentInputEvent.getEventStartTime(), currentInputEvent.getEventEndTime());
 			
-			//this.newPlotTimeStamp = temp.getEventStartTime();
-			//this.earliestEventEndTime = temp.getEventEndTime();
-			//plot the point
 			addToBloodSugarList();
 			this.eventQueue.add(currentInputEvent);
 		}
@@ -146,8 +148,6 @@ public class SimulatorEngine {
 					// add the event to temp queue to be processed again
 					if(temp.getMinsLeftToExpire()>0)
 					tempQueue.add(temp);
-					// update the timestamp to be plotted next
-					//this.newPlotTimeStamp = temp.getEventNextPlotTime();
 				}
 			}
 				
@@ -157,6 +157,7 @@ public class SimulatorEngine {
 			// move the unprocessed events back to the event queue to be picked again for processing
 			while(!tempQueue.isEmpty())
 				this.eventQueue.add(tempQueue.poll());
+			// Do not add the last marker event back to queue
 			if(currentInputEvent!=null)
 			this.eventQueue.add(currentInputEvent);
 			
@@ -164,6 +165,10 @@ public class SimulatorEngine {
 		}
 	}
 	
+	/**
+	 * This method plots the normalisation aspect of the blood sugar level
+	 * @param temp
+	 */
 	public void startNormalisation(MyQueueEvent temp)
 	{
 		long normaliseTime = DateHelper.getDiffInMinutes(temp.getEventStartTime(), this.lastPlottedTime);
@@ -177,56 +182,29 @@ public class SimulatorEngine {
 		else
 		{
 			// Window if time gap is smaller than difference between current and base blood sugar
+			
 		}
 	}
 	
+	/**
+	 * This method adds all the time stamps that needs to be plotted on the graph in a Treeset
+	 *
+	 * @param eventStartTime
+	 * @param eventEndTime
+	 */
 	public void updatePlottingTimeSet(Date eventStartTime, Date eventEndTime)
 	{
+		// This is a marker event for end of day
 		if(eventStartTime==null)
 		{
 			this.toBePlottedTime = this.plottingTimes.first();
 		}
 		else
 		{
+			// Add starting and ending time of current input event
 			this.plottingTimes.add(eventStartTime);
 			this.plottingTimes.add(eventEndTime);
 			this.toBePlottedTime = this.plottingTimes.first();
-		}
-		
-		
-		
-		
-		
-	}
-	/**
-	 * This method will process the remaining events in the event queue
-	 * 
-	 */
-	public void processRemainingEvents()
-	{
-		double tempValue = 0;
-		Date timePlotTimeStamp = null;
-		while(!this.eventQueue.isEmpty()){
-			MyQueueEvent temp = this.eventQueue.poll();
-			long minsToProcess = temp.getMinsLeftToExpire();
-			// this is the manually added last time point of the day
-			if(minsToProcess==0)
-			{
-				continue;
-				//timePlotTimeStamp = DateHelper.getDateMinutesAhead(timePlotTimeStamp, (long)(this.bloodSugar - 80.0));
-				//addToBloodSugarList(80.0, timePlotTimeStamp);
-			}
-			else
-			{
-				timePlotTimeStamp = DateHelper.getDateMinutesAhead(temp.getEventStartTime(), minsToProcess);
-				if(timePlotTimeStamp.after(DateHelper.getEndOfDayTime()))
-					minsToProcess = DateHelper.getDiffInMinutes(DateHelper.getEndOfDayTime(), temp.getEventStartTime());
-					// last user provided input point 
-				tempValue = temp.getGlycemicIndexRate() * minsToProcess;
-
-				addToBloodSugarList();
-			}
-			
 		}
 		
 	}
@@ -236,13 +214,11 @@ public class SimulatorEngine {
 	 * @param list
 	 * @return
 	 */
-
 	public List<InputEntry> addEndPointOfDay(List<InputEntry> list)
 	{
 		list.add(new InputEntry("","", 23, 59, 59));
 		return list;
 	}
-	
 	
 	/**
 	 * Method to update blood sugar
@@ -269,6 +245,7 @@ public class SimulatorEngine {
 		}
 		else
 		{
+			// Currently in the glycation zone
 			if(this.bloodSugar > 150 && this.glycationFlag)
 			{
 				this.glycation = (int) (this.glycation + DateHelper.getDiffInMinutes(this.toBePlottedTime, this.glycationHighTimeStamp));
@@ -277,6 +254,7 @@ public class SimulatorEngine {
 			}
 			else if(this.glycationFlag)
 			{
+				// blood sugar has decreased from 150 in the current plot time zone
 				this.glycationFlag = false;
 				long bloodSugarDiff = (long) (this.lastGlycationBloodSugar - 150);
 				//this.glycationHighTimeStamp = DateHelper.getDateMinutesAhead(this.glycationHighTimeStamp, bloodSugarDiff);
@@ -285,7 +263,6 @@ public class SimulatorEngine {
 			}
 				
 		}
-			
 		
 	}
 	

@@ -49,20 +49,13 @@ public class SimulatorClient extends JFrame{
 		setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
 		setLocationRelativeTo(null);
 	}
+	
+	/**
+	 * Method to create chart panel
+	 * @return
+	 */
 
 	private JPanel createChartPanel() {
-		/*String chartTitle = "Blood Sugar Simulator";
-		String xAxisLabel = "X";
-		String yAxisLabel = "Y";
-
-		XYDataset dataset = createDataset();
-
-		JFreeChart chart = ChartFactory.createXYLineChart(chartTitle, 
-				xAxisLabel, yAxisLabel, dataset, PlotOrientation.VERTICAL, rootPaneCheckingEnabled, rootPaneCheckingEnabled, rootPaneCheckingEnabled);
-
-		return new ChartPanel(chart);
-		
-*/
 
         final JFreeChart chart = ChartFactory.createTimeSeriesChart(
             "Blood Sugar Chart",
@@ -76,23 +69,19 @@ public class SimulatorClient extends JFrame{
 
         chart.setBackgroundPaint(Color.white);
         
-//        final StandardLegend sl = (StandardLegend) chart.getLegend();
-  //      sl.setDisplaySeriesShapes(true);
-
         final XYPlot plot = chart.getXYPlot();
-        //plot.setOutlinePaint(null);
+
         plot.setBackgroundPaint(Color.lightGray);
         plot.setDomainGridlinePaint(Color.white);
         plot.setRangeGridlinePaint(Color.white);
-    //    plot.setAxisOffset(new Spacer(Spacer.ABSOLUTE, 5.0, 5.0, 5.0, 5.0));
+
         plot.setDomainCrosshairVisible(true);
         plot.setRangeCrosshairVisible(false);
         
         final XYItemRenderer renderer = plot.getRenderer();
         if (renderer instanceof StandardXYItemRenderer) {
             final StandardXYItemRenderer rr = (StandardXYItemRenderer) renderer;
-            //rr.setPlotShapes(true);
-            //rr.setShapesFilled(true);
+
             renderer.setSeriesStroke(0, new BasicStroke(2.0f));
             renderer.setSeriesStroke(1, new BasicStroke(2.0f));
            }
@@ -103,9 +92,14 @@ public class SimulatorClient extends JFrame{
         return new ChartPanel(chart);
 	}
 	
+	/**
+	 * This method plots the points on the final graph
+	 * @return
+	 */
+	
 	private XYDataset createDataset() {
 		
-		
+		// get reference to the engine
 		List<OutputPoint> output = engine.getBloodSugarList();
 		
 		final TimeSeriesCollection dataset = new TimeSeriesCollection();
@@ -116,6 +110,7 @@ public class SimulatorClient extends JFrame{
 		Calendar calendar2 = GregorianCalendar.getInstance();
 		Date firstTimeStampOfDay = null;
 		
+		// Add each output point on the graph
 		for(OutputPoint out:output)
 		{
 			calendar.setTime(out.getTimestamp());
@@ -128,9 +123,12 @@ public class SimulatorClient extends JFrame{
 		
 		}
 		
+		// Add glycation series
+		// Starting point of the day
 		calendar2.setTime(firstTimeStampOfDay);
 		s2.add(new Minute(calendar2.get(Calendar.MINUTE), calendar2.get(Calendar.HOUR_OF_DAY), calendar2.get(Calendar.DAY_OF_MONTH),
 				calendar2.get(Calendar.MONTH), calendar2.get(Calendar.YEAR)), 0);
+		// Final glycation level point
 		s2.add(new Minute(calendar.get(Calendar.MINUTE), calendar.get(Calendar.HOUR_OF_DAY), calendar.get(Calendar.DAY_OF_MONTH),
 				calendar.get(Calendar.MONTH), calendar.get(Calendar.YEAR)), engine.getGlycation() );
 		
@@ -141,6 +139,10 @@ public class SimulatorClient extends JFrame{
 	}
 
 
+	/**
+	 * Main method
+	 * @param args
+	 */
 	public static void main(String[] args) {
 		
 		createInputs();
@@ -152,6 +154,9 @@ public class SimulatorClient extends JFrame{
 		});
 	}
 	
+	/**
+	 * Method to create input Food/Excercise points
+	 */
 	public static void createInputs()
 	{
 		List<InputEntry> list = new ArrayList();
