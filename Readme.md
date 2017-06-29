@@ -27,4 +27,9 @@ Inputs will be either Food or Excercise along with the timestamp of each event.
 ##Docker
 1. Make sure you have Docker on your system
 1. Make sure you have X11 or XQuartz depending on your OS to stream the graph output
-1. Docker commands coming soon....
+1. In a seperate terminal session execute the command to tame X11 
+socat TCP-LISTEN:6000,reuseaddr,fork UNIX-CLIENT:\"$DISPLAY\"
+1. Build the image by executing 
+docker build -t bss
+1. To run the project execute the following command
+docker run -v /tmp/.X11-unix:/tmp/.X11-unix -e DISPLAY=$(ipconfig getifaddr en0):0 bss
