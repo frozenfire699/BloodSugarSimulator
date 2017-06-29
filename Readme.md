@@ -23,3 +23,8 @@ Inputs will be either Food or Excercise along with the timestamp of each event.
 1. Run SimulatorCLient.java as a Java application
 1. To modify the input points, change the entries in the main function of the SimulatorClient.java 
 1. Input will of the form "Item""Type""Hours""Min""Sec"
+
+##Docker
+1. Make sure you have Docker on your system
+1. Make sure you have X11 or XQuartz depending on your OS to stream the graph output
+1. Docker commands coming soon....
