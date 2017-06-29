@@ -12,7 +12,7 @@ Inputs will be either Food or Excercise along with the timestamp of each event.
 
 
 # How to run it?
-##Locally
+## Locally
 
 1. Download the project
 1. Create a new Maven Project in eclipse
@@ -24,12 +24,12 @@ Inputs will be either Food or Excercise along with the timestamp of each event.
 1. To modify the input points, change the entries in the main function of the SimulatorClient.java 
 1. Input will of the form "Item""Type""Hours""Min""Sec"
 
-##Docker
+## Docker
 1. Make sure you have Docker on your system
 1. Make sure you have X11 or XQuartz depending on your OS to stream the graph output
 1. In a seperate terminal session execute the command to tame X11 
-'socat TCP-LISTEN:6000,reuseaddr,fork UNIX-CLIENT:\"$DISPLAY\"'
+`socat TCP-LISTEN:6000,reuseaddr,fork UNIX-CLIENT:\"$DISPLAY\"`
 1. Build the image by executing 
-'docker build -t bss'
+`docker build -t bss`
 1. To run the project execute the following command
-'docker run -v /tmp/.X11-unix:/tmp/.X11-unix -e DISPLAY=$(ipconfig getifaddr en0):0 bss'
+`docker run -v /tmp/.X11-unix:/tmp/.X11-unix -e DISPLAY=$(ipconfig getifaddr en0):0 bss`
